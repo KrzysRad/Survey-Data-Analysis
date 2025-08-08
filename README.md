@@ -1,0 +1,1 @@
+This repository contains three task lists related to survey data analysis using various statistical methods. Each list includes a file with the rnw extension, written in Rstudio, and a PDF file containing a report describing each task and its results in the form of an analysis.
