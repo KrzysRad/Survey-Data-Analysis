@@ -1,0 +1,761 @@
+\documentclass[12pt, a4paper]{article}
+\usepackage[OT4]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+\usepackage{anyfontsize}
+\usepackage{bbm}
+\usepackage{amsmath}
+\usepackage{xtab}  
+
+\newtheorem{theorem}{Twierdzenie}
+\newtheorem{lemma}{Lemat}
+\newtheorem{corollary}{Wniosek}
+\newtheorem{proposition}{Propozycja}
+\newtheorem{remark}{Uwaga}
+\newtheorem{note}{Notka}
+\newtheorem{fact}{Fakt}
+\newtheorem{definition}{Definicja}
+
+<<ustawienia_globalne, echo=FALSE, warning= FALSE, message=FALSE>>=
+library(knitr)
+library(latex2exp)
+library(ggplot2)
+library(binom)
+library(xtable) 
+library(wooldridge)
+library(stats)
+library(exact2x2)
+library(ca)
+opts_chunk$set(fig.path='figure/', fig.align='center', fig.pos='H',fig.width=4, fig.height=3)
+@
+
+
+\begin{document}
+
+\title{Sprawozdanie 2 ADA}
+\author{ Krzysztof Radomski 275968}
+\maketitle
+\tableofcontents
+\newpage
+\section{Zadanie 1}
+
+<<test_fishera_boschloo_temperatura, echo=TRUE, results='markup'>>=
+tabela <- matrix(c(4,0,3,17),nrow=2,ncol=2)
+zad_1_f <- fisher.test(tabela)$p.value
+cat("p-value dla testu Fishera, dla danych z zadania to:", zad_1_f, "\n")
+
+zad_1_b <- boschloo(x1=4,x2=3,n1=4,n2=20)$p.value
+cat("p-value dla testu Boschloo, dla danych z zadania to:", zad_1_b, "\n")
+@ 
+Dane z zadania ułożyłem w tabelkę 2x2, i zastosowałem test Fishera oraz 
+Boschloo. Na podstawie obu p-wartości możemy stwierdzić, że badane zmienne nie
+są niezależne, bo w obu przypadkach odrzuciliśmy hipotezę $H_0$ o niezależności na 
+poziomie istotności $\alpha = 0.05 $. Z zadania 3 dowiemy się o tym, że test 
+Boschloo`ego jest lepszy dlatego ostatecznie przyjmujemy, że nasza p-wartość wynosi  \Sexpr{zad_1_b}
+
+
+
+\section{Zadanie 2}
+<<test_fishera_dane_do_zad2, echo=FALSE, results='markup'>>=
+
+wage_quartiles <- quantile(wage1$wage, probs = c(0, 0.25, 0.5, 0.75, 1))
+wageCat <- cut(wage1$wage, breaks = wage_quartiles, include.lowest = TRUE,
+               labels = c("1", "2", "3", "4"))
+
+educ_terciles <- quantile(wage1$educ, probs = c(0, 1/3, 2/3, 1))
+educCat <- cut(wage1$educ, breaks = educ_terciles, include.lowest = TRUE,
+               labels = c("Low", "Medium", "High"))
+
+exper_terciles <- quantile(wage1$exper, probs = c(0, 1/3, 2/3, 1))
+experCat <- cut(wage1$exper, breaks = exper_terciles, include.lowest = TRUE,
+                labels = c("Low", "Medium", "High"))
+
+nonwhite <- wage1$nonwhite
+female <- wage1$female
+married <- wage1$married
+smsa <- wage1$smsa
+
+region <- ifelse(wage1$northcen == 1, "North Central",
+                 ifelse(wage1$south == 1, "South",
+                        ifelse(wage1$west == 1, "West", "Other")))
+
+new_data <- data.frame(wageCat, educCat, experCat, nonwhite, female, married, smsa, region)
+
+educCat2 <- cut(wage1$educ,breaks = c(0,8,11,12,14,max(wage1$educ)), include.lowest = TRUE)
+new_data$educCat2 <- educCat2
+@
+
+<<test_fishera_zad2, echo=TRUE, results='hide'>>=
+#a)
+tabelka_a <- table(new_data$female, new_data$wageCat)
+fisher.test(tabelka_a, simulate.p.value = TRUE)
+p_fh_a <- fisher.test(tabelka_a)$p.value
+
+#b)
+tabelka_b <- table(new_data$married, new_data$wageCat)
+p_fh_b <- fisher.test(tabelka_b, simulate.p.value = TRUE)$p.value
+
+#c)
+tabelka_c <- table(new_data$region, new_data$wageCat)
+p_fh_c <- fisher.test(tabelka_c, simulate.p.value = TRUE)$p.value
+
+#d)
+tabelka_d <- table(new_data$educCat, new_data$wageCat)
+p_fh_d <- fisher.test(tabelka_d, simulate.p.value = TRUE)$p.value
+
+#e)
+tabelka_e <- table(new_data$experCat, new_data$wageCat)
+p_fh_e <- fisher.test(tabelka_e, simulate.p.value = TRUE)$p.value
+
+#f)
+tabelka_f <- table(new_data$educCat2, new_data$wageCat)
+p_fh_f <- fisher.test(tabelka_f, simulate.p.value = TRUE)$p.value
+@
+
+Przeprowadzono dokładny test Fishera dla zmiennych kategorycznych z zestawu danych \texttt{new\_data} oraz zmiennej \texttt{wageCat} (kategorie wynagrodzeń) na poziomie istotności $\alpha = 0.05$. Wyniki testów oraz wnioski przedstawiono poniżej:
+
+\begin{enumerate}
+    \item \textbf{Porównanie zmiennej \texttt{female} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.0004998$.
+            \item Wynik bez symulacji: $p = 2.2 \times 10^{-16}$.
+            \item Odrzucamy hipotezę o niezależności płci od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Płeć jest statystycznie istotnie związana z kategoriami wynagrodzenia.
+        \end{itemize}
+        
+    \item \textbf{Porównanie zmiennej \texttt{married} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.0004998$.
+            \item Odrzucamy hipotezę o niezależności stanu cywilnego od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Stan cywilny jest statystycznie istotnie związany z kategoriami wynagrodzenia.
+        \end{itemize}
+        
+    \item \textbf{Porównanie zmiennej \texttt{region} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.4343$.
+            \item Brak podstaw do odrzucenia hipotezy o niezależności regionu od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Nie stwierdzono statystycznie istotnego związku między regionem zamieszkania a kategoriami wynagrodzenia.
+        \end{itemize}
+        
+    \item \textbf{Porównanie zmiennej \texttt{educCat} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.0004998$.
+            \item Odrzucamy hipotezę o niezależności wykształcenia od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Wykształcenie jest statystycznie istotnie związane z kategoriami wynagrodzenia.
+        \end{itemize}
+        
+    \item \textbf{Porównanie zmiennej \texttt{experCat} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.0004998$.
+            \item Odrzucamy hipotezę o niezależności doświadczenia zawodowego od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Doświadczenie zawodowe jest statystycznie istotnie związane z kategoriami wynagrodzenia.
+        \end{itemize}
+        
+    \item \textbf{Porównanie zmiennej \texttt{educCat2} z \texttt{wageCat}}:
+        \begin{itemize}
+            \item Wynik z symulowaną p-wartością: $p = 0.0004998$.
+            \item Odrzucamy hipotezę o niezależności alternatywnych kategorii wykształcenia od kategorii wynagrodzenia.
+            \item \textbf{Wniosek}: Alternatywne podziały wykształcenia również wskazują na statystycznie istotny związek z kategoriami wynagrodzenia.
+        \end{itemize}
+\end{enumerate}
+
+W podpunkcie (a), dla zmiennej \texttt{female}, wyniki obliczono obiema metodami:
+\begin{itemize}
+    \item Symulowana p-wartość: $p = 0.0004998$.
+    \item Dokładna p-wartość: $p = 2.2 \times 10^{-16}$.
+\end{itemize}
+
+Różnica w wynikach wynika z faktu, że metoda symulowana bazuje na ograniczonej liczbie replikacji (2000), co może prowadzić do mniej dokładnego oszacowania w przypadku małych p-wartości. Dokładna metoda w tej sytuacji jest bardziej wiarygodna, ponieważ wykorzystuje wszystkie możliwe tablice kontyngencji, eliminując wpływ losowości.
+
+\subsection*{Dlaczego symulowano p-wartości w innych przypadkach?}
+
+W przypadku większych tablic kontyngencji (np. \texttt{educCat}, \texttt{experCat}), liczba możliwych kombinacji wyników jest zbyt duża, aby metoda dokładna była możliwa do zastosowania. Dlatego w tych analizach zastosowano metodę symulowaną.
+
+\subsection*{Wniosek}
+
+Gdy dostępna jest dokładna p-wartość (jak w podpunkcie (a)), należy ją uznać za bardziej wiarygodną. W pozostałych przypadkach metoda symulowana jest akceptowalnym przybliżeniem, o ile liczba replikacji jest odpowiednio duża. W naszym przypadku, liczba 2000 replikacji powinna być wystarczająca do uzyskania wiarygodnych wyników, choć nadal należy interpretować je z pewną ostrożnością. 
+
+\section{Zadanie 3}
+Celem analizy jest porównanie mocy dwóch testów statystycznych: testu Fishera i testu Boschloo’ego. Moc testu to prawdopodobieństwo odrzucenia hipotezy zerowej, gdy jest fałszywa, czyli zdolność testu do wykrywania rzeczywistego efektu. Dla każdego rozmiaru próby i zestawu parametrów symulacja powtarzana jest M = 100 razy. Na koniec każdej symulacji dowiadujemy się jaką skuteczność miał test Fishera i Boschloo.
+
+<<symulacja_zad3, echo=TRUE, results='asis'>>=
+
+symulacja <- function(n_1, n_2, p_1, p_2, alpha = 0.05, M = 100){
+  fisher_sum <- 0 
+  boschlo_sum <- 0
+
+  for (i in 1:M) {
+    x_1 <- rbinom(1, n_1, p_1)
+    x_2 <- rbinom(1, n_2, p_2)
+    tabela <- matrix(c(x_1, x_2, n_1 - x_1, n_2 - x_2), ncol = 2, nrow = 2)
+    
+    fisher_pval <- fisher.test(tabela)$p.value
+    boschloo_pval <- boschloo(x1 = x_1, x2 = x_2, n1 = n_1, n2 = n_2,
+                              alternative = "two.sided")$p.value
+    
+    
+    # Liczba przypadków, w których p-value jest mniejsze niż alpha
+    if (fisher_pval < alpha) fisher_sum <- fisher_sum + 1
+    if (boschloo_pval < alpha) boschlo_sum <- boschlo_sum + 1
+    
+    return(c(fisher_sum, boschlo_sum) / M)  # Zwrot wyników
+    }
+  
+  }
+@  
+
+
+<<tabela_symulacja_rozmiar30, echo=FALSE, results='asis'>>=
+
+dane_z_symulacji <- data.frame(
+  Rozmiar_prob = c(30, 30, 30, 30, 50, 50, 50, 50, 100, 100, 100, 100),
+  Prawdopodobienstwa = c("p1=0.5, p2=0.5", "p1=0.8, p2=0.8", "p1=0.3, p2=0.4", "p1=0.5, p2=0.8",
+                         "p1=0.5, p2=0.5", "p1=0.8, p2=0.8", "p1=0.3, p2=0.4", "p1=0.5, p2=0.8",
+                         "p1=0.5, p2=0.5", "p1=0.8, p2=0.8", "p1=0.3, p2=0.4", "p1=0.5, p2=0.8"),
+  Fisher = c(0.01, 0.02, 0.11, 0.64, 0.03, 0.06, 0.1, 0.86, 0.04, 0.04, 0.3, 1),
+  Boschloo = c(0.02, 0.05, 0.17, 0.73, 0.04, 0.06, 0.11, 0.92, 0.04, 0.06, 0.34, 1)
+)
+
+# Dane dla próby 30
+dane30 <- subset(dane_z_symulacji, Rozmiar_prob == 30)
+
+# Generowanie tabeli
+print(xtable(dane30[, -1], caption = "Porównanie wyników testów dla próby o rozmiarze 30.", 
+             label = "tab:rozmiar30"),
+      include.rownames = FALSE, comment = FALSE, caption.placement = "top")
+@
+
+
+<<tabela_symulacja_rozmiar50, echo=FALSE, results='asis'>>=
+# Dane dla próby 50
+dane50 <- subset(dane_z_symulacji, Rozmiar_prob == 50)
+
+# Generowanie tabeli
+print(xtable(dane50[, -1], caption = "Porównanie wyników testów dla próby o rozmiarze 50.", 
+             label = "tab:rozmiar50"),
+      include.rownames = FALSE, comment = FALSE, caption.placement = "top")
+@
+
+
+<<tabela_symulacja_rozmiar100, echo=FALSE, results='asis'>>=
+# Dane dla próby 100
+dane100 <- subset(dane_z_symulacji, Rozmiar_prob == 100)
+
+# Generowanie tabeli
+print(xtable(dane100[, -1], caption = "Porównanie wyników testów dla próby o rozmiarze 100.", 
+             label = "tab:rozmiar100"),
+      include.rownames = FALSE, comment = FALSE, caption.placement = "top")
+@
+
+1. **Porównanie mocy testów**:
+   - Test Boschloo’ego lepiej radzi sobie w większości przypadków, szczególnie przy małych próbkach.
+   - Dla konfiguracji z większymi różnicami między \(p_1\) i \(p_2\) (np. \(p_1 = 0.5, p_2 = 0.8\)), Boschloo osiąga wyższą moc niż test Fishera.
+
+2. **Dlaczego Boschloo jest lepszy?**:
+   - Test Boschloo’ego jest rozszerzeniem testu Fishera, które minimalizuje nadmierną konserwatywność i lepiej wykorzystuje dostępne dane, zwłaszcza przy małych próbkach.
+
+3. **Czy Boschloo zawsze jest lepszy?**:
+   - Nie. W przypadku dużych próbek i małych różnic między \(p_1\) i \(p_2\), różnica w mocy jest niewielka, co czyni test Fishera wystarczającym w takich sytuacjach.
+
+
+\section{Zadanie 4}
+
+<<test_chi_kwadrat, echo = TRUE, result = 'hide'>>=
+#a)
+p_chi_a <- chisq.test(tabelka_a, correct = TRUE)$p.value
+p_chi_a
+#b)
+p_chi_b <- chisq.test(tabelka_b, correct = TRUE)$p.value
+p_chi_b
+#c)
+p_chi_c <- chisq.test(tabelka_c, correct = TRUE)$p.value
+p_chi_c
+#d)
+p_chi_d <- chisq.test(tabelka_d, correct = TRUE)$p.value
+p_chi_d
+#e)
+p_chi_e <- chisq.test(tabelka_e, correct = TRUE)$p.value
+p_chi_e
+#f)
+p_chi_f <- chisq.test(tabelka_f, correct = TRUE)$p.value
+p_chi_f
+
+@
+Podobnie jak w zadaniu 2-gim użyliśmy testów do sprawdzenia niezależności dwóch zmiennych.
+Dane którymi się posłużyliśmy są tymi samymi co w zadaniu 2, sprawdzamy więc niezależność tych samych par zmiennych, jednak w tym przypadku użyliśmy testu $\chi^2$ - Pearsona
+
+\begin{itemize}
+    \item \textbf{(a) wageCat a female:}  
+    Test niezależności wskazał, że istnieje statystycznie istotny związek pomiędzy zmiennymi \texttt{wageCat} i \texttt{female}, ponieważ wartość $p$ wyniosła $3.23 \times 10^{-16}$, co jest znacznie mniejsze niż przyjęty poziom istotności $\alpha = 0.05$, zatem można odrzucić hipotezę zerową
+    
+    \item \textbf{(b) wageCat a married:}  
+    Wartość $p$ testu wyniosła $7.05 \times 10^{-8}$, co oznacza, że zmienne \texttt{wageCat} i \texttt{married} również nie są niezależne przy poziomie istotności $\alpha = 0.05$.
+
+    \item \textbf{(c) wageCat a region:}  
+    W tym przypadku wartość $p$ wyniosła $0.4446$, więc nie ma podstaw do odrzucenia hipotezy zerowej, co sugeruje brak istotnego związku pomiędzy \texttt{wageCat} a \texttt{region}. 
+
+    \item \textbf{(d) wageCat a educCat:}  
+    Wartość $p$ wyniosła $1.60 \times 10^{-12}$, co wskazuje na statystycznie istotny związek między zmiennymi \texttt{wageCat} i \texttt{educCat}.
+    
+    \item \textbf{(e) wageCat a experCat:}  
+    Test niezależności wskazał wartość $p = 5.44 \times 10^{-6}$, co oznacza, że zmienne \texttt{wageCat} i \texttt{experCat} nie są niezależne.
+    
+    \item \textbf{(f) wageCat a educCat2:}  
+    Otrzymano wartość $p = 8.25 \times 10^{-18}$, co sugeruje istnienie bardzo silnego związku pomiędzy \texttt{wageCat} i zmienną \texttt{educCat2}.
+\end{itemize}
+
+Podsumowując, testy wskazują na zależność zmiennej \texttt{wageCat} od większości badanych zmiennych, z wyjątkiem zmiennej \texttt{region}. Wyniki te mogą być pomocne w dalszej analizie struktury danych i modelowaniu.
+
+\section{Zadanie 5}
+
+<<test_iw, echo = TRUE, result = 'hide'>>=
+test_iw <- function(x, alpha = 0.05) {
+  if (!is.matrix(x)) stop("Dane wejściowe muszą być macierzą.")
+  
+  # Suma całkowita
+  n <- sum(x)
+  # Liczba wierszy i kolumn
+  r <- dim(x)[1]
+  c <- dim(x)[2]
+  
+  # Suma brzegowa
+  n_plus_j <- colSums(x)
+  n_i_plus <- rowSums(x)
+  
+  # Statystyka lambda
+  lambda <- 0
+  for (i in 1:r) {
+    for (j in 1:c) {
+      expected <- (n_i_plus[i] * n_plus_j[j]) / n  # Wartości oczekiwane
+      if (expected > 0) {  # Unikaj problemów z logarytmami
+        lambda <- lambda + x[i, j] * log(x[i, j] / expected)
+      }
+    }
+  }
+  
+  # Obliczanie statystyki testowej
+  test_statistic <- 2 * lambda
+  df <- (r - 1) * (c - 1)  # Liczba stopni swobody
+  p_value <- 1 - pchisq(test_statistic, df)
+  
+  return(list(statistic = test_statistic, p_value = p_value))
+}
+
+@
+
+<<wyniki_iw, echo=TRUE,results='asis'>>=
+
+# Obliczanie p-value za pomocą test_iw
+p_iw_a <- test_iw(as.matrix(tabelka_a))$p_value
+p_iw_b <- test_iw(as.matrix(tabelka_b))$p_value
+p_iw_c <- test_iw(as.matrix(tabelka_c))$p_value
+p_iw_d <- test_iw(as.matrix(tabelka_d))$p_value
+p_iw_e <- test_iw(as.matrix(tabelka_e))$p_value
+p_iw_f <- test_iw(as.matrix(tabelka_f))$p_value
+
+@
+
+Poniżej przedstawiono wyniki analizy p-value dla różnych zmiennych w stosunku do zmiennej \texttt{wageCat}. Wyniki uzyskano za pomocą funkcji \texttt{test\_iw}.
+
+\begin{enumerate}
+    \item P-value dla tabelki \textbf{a} (\texttt{female vs wageCat}): 
+    \[ \Sexpr{p_iw_a}\] Wynik wskazuje na zależność między zmiennymi, ponieważ p-value jest mniejsze niż przyjęty poziom istotności (\(< 0.05\)).
+
+    \item P-value dla tabelki \textbf{b} (\texttt{married vs wageCat}): 
+    p-wartość wyniosła \[ \Sexpr{p_iw_b}\] Zależność również jest istotna statystycznie, co sugeruje różnice w kategorii \texttt{wageCat} w zależności od zmiennej \texttt{married}.
+
+    \item P-value dla tabelki \textbf{c} (\texttt{region vs wageCat}): 
+    p-wartość wyniosła \[ \Sexpr{p_iw_c}\] zatem nie ma podstaw do odrzucenia hipotezy zerowej o niezależności między \texttt{region} a kategorią wynagrodzenia.
+
+    \item P-value dla tabelki \textbf{d} (\texttt{educCat vs wageCat}): 
+     \[ \Sexpr{p_iw_d} , 0.05\]  Wynik wskazuje na istotną zależność, co jest zgodne z intuicyjnym oczekiwaniem, że poziom wykształcenia wpływa na kategorię wynagrodzenia.
+
+    \item P-value dla tabelki \textbf{e} (\texttt{experCat vs wageCat}): 
+    \[ \Sexpr{p_iw_e}\] Wynik potwierdza istotną zależność (\(p < 0.05\)), doświadczenie w wykonywanym zawodzie ma wpływ na wielkość zarobków
+
+    \item P-value dla tabelki \textbf{f} (\texttt{educCat2 vs wageCat}): 
+    \[ \Sexpr{p_iw_f}\] Jest on równy zero zapewne z powodu tego, że p-wartością była tak mała liczba, że komputer uznał ją za zero. Wynik zatem wskazuje na istotną zależność, co oznacza, że poziom wykształcenia jest powiązany z późniejszymi zarobkami .
+\end{enumerate}
+
+\section*{Wnioski}
+
+\begin{itemize}
+    \item Istotne statystycznie zależności (\(p < 0.05\)) zaobserwowano dla zmiennych:
+    \texttt{female}, \texttt{married}, \texttt{educCat}, \texttt{experCat}, i \texttt{educCat2}. Oznacza to, że te zmienne są silnie powiązane z kategorią wynagrodzenia (\texttt{wageCat}).
+    \item Brak istotnej zależności stwierdzono jedynie w przypadku zmiennej \texttt{region}. Można przypuszczać, że miejsce zamieszkania nie ma bezpośredniego wpływu na kategorię wynagrodzenia w analizowanym zbiorze danych.
+\end{itemize}
+
+\section{Zadanie 6}
+
+<<printowanie_tabeli, echo = FALSE, results = 'asis'>>=
+# Tworzenie tabeli podsumowującej
+summary_table <- data.frame(
+  Tabela = c("A (female vs wageCat)", 
+             "B (married vs wageCat)", 
+             "C (region vs wageCat)", 
+             "D (educCat vs wageCat)", 
+             "E (experCat vs wageCat)", 
+             "F (educCat2 vs wageCat)"),
+  Freeman_Halton = format(c(p_fh_a, p_fh_b, p_fh_c, p_fh_d, p_fh_e, p_fh_f), scientific = TRUE),
+  Chi_Squared = format(c(p_chi_a, p_chi_b, p_chi_c, p_chi_d, p_chi_e, p_chi_f), scientific = TRUE),
+  Likelihood_Ratio = format(c(p_iw_a, p_iw_b, p_iw_c, p_iw_d, p_iw_e, p_iw_f), scientific = TRUE)
+)
+
+# Generowanie tabeli za pomocą xtable
+tabela_summary <- xtable(summary_table, 
+                         digits = 7, 
+                         caption = "Podsumowanie wartości p dla testów niezależności (Freeman-Halton, chi-kwadrat, iloraz wiarogodności)", 
+                         label = "tab:summary_tests")
+
+# Nadanie nazw kolumn
+colnames(tabela_summary) <- c("Test", "Freeman-Halton", "Chi-squared", "Likelihood Ratio")
+
+# Wydruk tabeli w formacie LaTeX
+print(tabela_summary, 
+      type = "latex", 
+      table.placement = "H", 
+      caption.placement = "top", 
+      include.rownames = FALSE)
+@
+W celu oceny zależności pomiędzy zmiennymi w zbiorze danych, przeprowadzono trzy testy statystyczne: test Freeman-Halton, test Chi-kwadrat oraz test Ilorazu Wiarogodności. Poniżej przedstawiono analizę wyników uzyskanych dla różnych par zmiennych.
+
+\begin{itemize}
+    \item \textbf{Test Freeman-Halton:}  
+    Dla większości przypadków (A, B, D, E, F), p-wartości są bardzo małe, co sugeruje silną zależność zmiennych. Test Freeman-Halton, będący testem dokładnym, jest szczególnie przydatny w przypadku małych prób i tabel z niewielkimi licznościami, gdzie inne testy mogą dawać mniej dokładne wyniki.
+    
+    \item \textbf{Test Chi-kwadrat:}  
+    P-wartości dla testu Chi-kwadrat są podobne do tych uzyskanych w teście Freeman-Halton, ale w przypadku zmiennych z małymi licznościami, test Chi-kwadrat może być mniej wiarygodny. Dla przypadku C (region vs wageCat) p-wartość wyniosła 0.446, co wskazuje na brak zależności między zmiennymi, jednakże małe liczności w tabeli mogą wpłynąć na wiarygodność tego wyniku.
+    
+    \item \textbf{Test Ilorazu Wiarogodności:}  
+    Wyniki p dla testu Ilorazu Wiarogodności są zbliżone do tych uzyskanych w teście Chi-kwadrat, co sugeruje, że dla prostych tabel kontyngencji obie metody są równoważne. Test Ilorazu Wiarogodności jest bardziej elastyczny i może być bardziej odpowiedni w bardziej złożonych modelach.
+\end{itemize}
+
+
+\section{Zadanie 7}
+
+\subsection{Miara \(\tau\)}
+Miara \(\tau\) opisuje siłę zależności między zmiennymi w tabeli kontyngencji. Jest definiowana wzorem:
+\[
+\tau = \frac{\sum_{i=1}^{R} \sum_{j=1}^{C} \frac{n_{ij}^2}{n n_{i+}} - \sum_{j=1}^{C} \left(\frac{n_{+j}}{n}\right)^2}{1 - \sum_{j=1}^{C} \left(\frac{n_{+j}}{n}\right)^2}
+\]
+gdzie:
+\begin{itemize}
+\item \(n_{ij}\) to liczba elementów w \(i\)-tym wierszu i \(j\)-tej kolumnie,
+\item \(n_{i+}\) to suma elementów w \(i\)-tym wierszu,
+\item \(n_{+j}\) to suma elementów w \(j\)-tej kolumnie,
+\item \(n\) to całkowita liczba elementów w tabeli.
+\end{itemize}
+
+<<miara_tau, echo = TRUE, result = 'asis'>>=
+tau <- function(x) {
+  total_count <- sum(x)
+  num_rows <- dim(x)[1]
+  num_cols <- dim(x)[2]
+  col_totals <- numeric(num_cols)
+  row_totals <- numeric(num_rows)
+  
+  for (col_idx in 1:num_cols) col_totals[col_idx] <- sum(x[, col_idx])
+  for (row_idx in 1:num_rows) row_totals[row_idx] <- sum(x[row_idx, ])
+  
+  numerator_part <- 0
+  denominator_part <- 0
+  
+  for (col_idx in 1:num_cols) {
+    for (row_idx in 1:num_rows) {
+      numerator_part <- numerator_part + x[row_idx, col_idx]^2 / total_count / row_totals[row_idx]
+    }
+    denominator_part <- denominator_part + (col_totals[col_idx] / total_count)^2
+  }
+  
+  return((numerator_part - denominator_part) / (1 - denominator_part))
+}
+
+@
+
+
+\subsection{Miara \(\gamma\)}
+Miara \(\gamma\) oblicza różnicę między liczbą par zgodnych (\(C\)) i niezgodnych (\(D\)) względem ich sumy:
+\[
+\gamma = \frac{C - D}{C + D}
+\]
+
+gdzie:
+\[
+C = \sum_{i=1}^{R-1} \sum_{j=1}^{C-1} n_{ij} \cdot \sum_{k=i+1}^{R} \sum_{l=j+1}^{C} n_{kl}
+\]
+to liczba par zgodnych, a
+\[
+D = \sum_{i=2}^{R} \sum_{j=1}^{C-1} n_{ij} \cdot \sum_{k=1}^{i-1} \sum_{l=j+1}^{C} n_{kl}
+\]
+to liczba par niezgodnych.
+
+<<miara_gamma, echo = TRUE, result = 'asis'>>=
+gamma <- function(x) {
+  concordant_count <- 0
+  discordant_count <- 0
+  num_rows <- dim(x)[1]
+  num_cols <- dim(x)[2]
+  
+  for (col_idx in 1:(num_cols - 1)) {
+    for (row_idx in 1:(num_rows - 1)) {
+      concordant_count <- concordant_count + sum(x[(row_idx + 1):num_rows, (col_idx + 1):num_cols]) * x[row_idx, col_idx]
+      discordant_count <- discordant_count + sum(x[1:row_idx, (col_idx + 1):num_cols]) * x[row_idx + 1, col_idx]
+    }
+  }
+  
+  return((concordant_count - discordant_count) / (concordant_count + discordant_count))
+}
+
+@
+
+
+\subsection{Miara \(\phi\)}
+Miara \(\phi\) określa siłę zależności w tabelach dwuwymiarowych. Definiowana jest jako:
+\[
+\phi = \sqrt{\frac{X^2}{n}}
+\]
+gdzie \(X^2\) to statystyka chi-kwadrat, a \(n\) to liczba obserwacji.
+
+<<miara_fi, echo = TRUE, result = 'asis'>>=
+fi <- function(x){
+  total_count <- sum(x)
+  
+  num_rows <- dim(x)[1]
+  num_cols <- dim(x)[2]
+  
+  col_totals <- numeric(num_cols)
+  row_totals <- numeric(num_rows)
+  
+  row_totals <- rowSums(x)
+  col_totals <- colSums(x)
+  
+  X_value <- 0
+
+  for (i in 1:num_rows){
+    for (j in 1:num_cols){
+      expected_value <- (row_totals[i] * col_totals[j]) / total_count
+      deviation <- x[i, j] - expected_value
+      X_value <- X_value + (deviation^2 / expected_value)
+    }
+  }
+  return(sqrt(X_value/total_count))
+}
+@
+
+
+
+\subsection{Współczynnik Sommersa \( \hat{d}\)}
+Współczynnik Sommersa \(\hat{d}\) mierzy asymetryczną zależność między zmiennymi:
+\[
+\hat{d} = \frac{C - D}{\frac{n(n-1)}{2} - T_1}
+\]
+gdzie \(T_1 = \sum_{i=1}^{R} \frac{n_{i+}(n_{i+}-1)}{2}\).
+
+
+<<miara_sommersa, echo = TRUE, result = 'asis'>>=
+
+sommers_d <- function(x) {
+  # Obliczenie liczby wierszy i kolumn
+  num_rows <- dim(x)[1]
+  num_cols <- dim(x)[2]
+  
+  # Obliczenie liczby par zgodnych (C) i niezgodnych (D)
+  C <- 0
+  D <- 0
+  for (j in 1:(num_cols - 1)) {
+    for (i in 1:(num_rows - 1)) {
+      C <- C + sum(x[(i + 1):num_rows, (j + 1):num_cols]) * x[i, j]
+      D <- D + sum(x[1:i, (j + 1):num_cols]) * x[i + 1, j]
+    }
+  }
+  
+  # Obliczenie n (całkowita liczba obserwacji)
+  n <- sum(x)
+  
+  # Obliczenie T_1
+  row_totals <- rowSums(x)
+  T1 <- sum(row_totals * (row_totals - 1) / 2)
+  
+  # Obliczenie współczynnika d_b
+  db <- (C - D) / (n * (n - 1) / 2 - T1)
+  return(db)
+}
+@
+
+<<tabela_wyniki_miar_dla_tabelek, echo=FALSE, results='asis'>>=
+# Obliczanie miar zależności dla tabelek
+miary_zaleznosci <- function(x) {
+  tau_value <- tau(x)
+  gamma_value <- gamma(x)
+  fi_value <- fi(x)
+  sommers_d_value <- sommers_d(x)
+  
+  return(c(Tau = tau_value, Gamma = gamma_value, Fi = fi_value, Sommers_d = sommers_d_value))
+}
+
+# Tworzenie tabeli wyników
+wyniki <- data.frame(
+  Tabelka = c("Female i WageCat", "EducCat i WageCat", "EducCat2 i WageCat"),
+  Tau = numeric(3),
+  Gamma = numeric(3),
+  Fi = numeric(3),
+  Sommers_d = numeric(3)
+)
+
+# Obliczanie miar i uzupełnianie tabeli wyników
+wyniki[1, 2:5] <- miary_zaleznosci(tabelka_a)
+wyniki[2, 2:5] <- miary_zaleznosci(tabelka_d)
+wyniki[3, 2:5] <- miary_zaleznosci(tabelka_f)
+
+# Łączenie wyników z odpowiednimi miarami
+tabela_summary <- xtable(wyniki, 
+                         caption = "Miary zależności dla różnych tabelek",
+                         label = "tab:miary_zaleznosci", 
+                         digits = 7)
+
+# Nadanie nazw kolumn
+colnames(tabela_summary) <- c("Tabela", "Tau", "Gamma", "Fi", "Sommers_d")
+
+# Wydruk tabeli w formacie LaTeX
+print(tabela_summary, 
+      type = "latex", 
+      table.placement = "H", 
+      caption.placement = "top", 
+      include.rownames = FALSE)
+@
+
+
+Na podstawie wyników z tabeli, obliczone miary zależności dostarczają cennych informacji o sile oraz kierunku zależności pomiędzy zmiennymi w różnych tabelach kontyngencji.
+
+Z analizy wyników wynika, że:
+\begin{itemize}
+    \item Miara \textbf{$\gamma$} najlepiej oddaje zależność między zmiennymi w tabelach "EducCat i WageCat" oraz "EducCat2 i WageCat", wskazując na pozytywną zależność, szczególnie w przypadku wykształcenia i kategorii dochodów.
+    \item Wartości \textbf{$\tau$} są bardzo małe we wszystkich tabelach, co sugeruje stosunkowo słabą zależność między zmiennymi. Najwyższe wartości $\tau$ są dla "EducCat2 i WageCat", wskazując na pewną pozytywną zależność.
+    \item Miara \textbf{$\phi$} oraz Sommersa \(\hat{d}\) również wskazują na najsilniejszą zależność w przypadku "EducCat2 i WageCat", sugerując silny wpływ wykształcenia na kategorię dochodów.
+\end{itemize}
+
+Zatem w przypadku tabeli "EducCat2 i WageCat", miary takie jak \textbf{$\phi$} i \textbf{$\gamma$} wskazują na najsilniejszą zależność, co może oznaczać, że wykształcenie ma bardziej wyraźny wpływ na kategorię dochodów w porównaniu do płci (w przypadku "Female i WageCat").
+
+
+
+\section{Zadanie 8}
+
+<<analiza_korespondencji, echo=FALSE,results='hide'>>=
+x <- table(new_data$wageCat,new_data$educCat2)
+result <- ca(x)
+@
+
+W tej sekcji przeprowadzono analizę korespondencji pomiędzy zmiennymi \texttt{wageCat} i \texttt{educCat2}. Wyniki przedstawiają się następująco:
+
+
+\subsection{Współrzędne punktów}
+
+W wyniku analizy korespondencji otrzymaliśmy współrzędne punktów dla zmiennych \texttt{wageCat} i \texttt{educCat2}, które przedstawiają pozycje tych zmiennych w przestrzeni 2D. Współrzędne punktów reprezentują pozycje poszczególnych kategorii zmiennych \texttt{wageCat} i \texttt{educCat2} w przestrzeni o obniżonej wymiarowości, co pozwala na wizualizację zależności między kategoriami w przestrzeni 2D.
+
+
+\textbf{Wiersze (\texttt{wageCat})} 
+Współrzędne kategorii tej zmiennej ukazują, w jakim stopniu różne przedziały wynagrodzeń różnicują się pod względem edukacji.
+
+
+<<row_coords, echo=FALSE, results='asis'>>=
+# Współrzędne dla wierszy (wageCat)
+library(xtable)
+row_coords <- data.frame(result$rowcoord)
+colnames(row_coords) <- paste("Dim", 1:ncol(row_coords), sep = " ")
+row_coords$Kategoria <- rownames(result$rowcoord)
+row_coords <- row_coords[, c(ncol(row_coords), 1:(ncol(row_coords)-1))]
+rownames(row_coords) <- NULL
+
+# Tworzenie tabeli dla współrzędnych wierszy
+print(xtable(row_coords, digits = 4, 
+             caption = "Współrzędne dla wierszy (wageCat)", 
+             label = "tab:row_coords"), 
+      type = "latex", 
+      include.rownames = FALSE, 
+      caption.placement = "top",
+      table.placement = "H")
+@
+\textbf{Kolumny (\texttt{educCat2})} 
+Współrzędne dla poziomów edukacji ukazują ich relacje względem przedziałów wynagrodzeń.
+
+<<col_coords, echo=FALSE, results='asis'>>=
+# Współrzędne dla kolumn (educCat2)
+col_coords <- data.frame(result$colcoord)
+colnames(col_coords) <- paste("Dim", 1:ncol(col_coords), sep = " ")
+col_coords$Kategoria <- rownames(result$colcoord)
+col_coords <- col_coords[, c(ncol(col_coords), 1:(ncol(col_coords)-1))]
+rownames(col_coords) <- NULL
+
+# Tworzenie tabeli dla współrzędnych kolumn
+print(xtable(col_coords, digits = 4, 
+             caption = "Współrzędne dla kolumn (educCat2)", 
+             label = "tab:col_coords"), 
+      type = "latex", 
+      include.rownames = FALSE, 
+      caption.placement = "top",
+      table.placement = "H")
+@
+
+\subsection{Macierz ładunków}
+
+Macierz ładunków wskazuje, jaką wagę każda kategoria zmiennej ma w analizie korespondencji.
+
+\textbf{Masy wierszy (\texttt{wageCat})} \\
+Wartości te wskazują, jak często poszczególne przedziały wynagrodzeń występują w danych. Większe wartości oznaczają kategorie częściej występujące, co ma większy wpływ na pozycjonowanie punktów w przestrzeni 2D.
+
+
+<<row_mass, echo=FALSE, results='asis'>>=
+# Masy dla wierszy (wageCat)
+row_mass <- data.frame(Kategoria = rownames(result$rowcoord), Masy = result$rowmass)
+rownames(row_mass) <- NULL
+
+# Tworzenie tabeli dla mas wierszy
+print(xtable(row_mass, digits = 4, 
+             caption = "Masy dla wierszy (wageCat)", 
+             label = "tab:row_mass"), 
+      type = "latex", 
+      include.rownames = FALSE, 
+      caption.placement = "top",
+      table.placement = "H")
+@
+
+\textbf{Masy kolumn (\texttt{educCat2})} 
+Analogicznie, masy dla poziomów edukacji ukazują ich względne znaczenie w analizie.
+
+<<col_mass, echo=FALSE, results='asis'>>=
+# Masy dla kolumn (educCat2)
+col_mass <- data.frame(Kategoria = rownames(result$colcoord), Masy = result$colmass)
+rownames(col_mass) <- NULL
+
+# Tworzenie tabeli dla mas kolumn
+print(xtable(col_mass, digits = 4, 
+             caption = "Masy dla kolumn (educCat2)", 
+             label = "tab:col_mass"), 
+      type = "latex", 
+      include.rownames = FALSE, 
+      caption.placement = "top",
+      table.placement = "H")
+@
+
+\subsection{Wykres analizy korespondencji}
+
+Aby lepiej zobaczyć zależności pomiędzy kategoriami zmiennych, generujemy wykres analizy korespondencji:
+
+\begin{figure}[H]
+\centering
+<<wykres_analizy, echo=FALSE, fig.cap="Analiza korespondencji dla wageCat i educCat2", out.width="0.8\\textwidth">>=
+plot(result)
+@
+\end{figure}
+
+Układ punktów na wykresie pokazuje podobieństwa i różnice pomiędzy kategoriami obu zmiennych. Kategorie leżące blisko siebie można interpretować jako mające podobne rozkłady w macierzy kontyngencji. Wykres pozwala także zauważyć, czy poszczególne kategorie zmiennych grupują się w klastery, co może świadczyć o wspólnych cechach badanych grup.
+
+\subsection{Podsumowanie}
+
+Analiza korespondencji pomiędzy zmiennymi \texttt{wageCat} i \texttt{educCat2} dostarcza cennych informacji o zależnościach pomiędzy tymi zmiennymi. Dzięki macierzy kontyngencji oraz współrzędnym punktów w przestrzeni 2D możemy lepiej zrozumieć, jak kategorie tych zmiennych się ze sobą łączą.
+
+
+\end{document}

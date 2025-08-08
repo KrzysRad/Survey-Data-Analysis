@@ -1,0 +1,785 @@
+\documentclass[12pt, a4paper]{article}
+%\SweaveOpts{warning=FALSE}
+\usepackage[OT4]{polski}
+\usepackage[utf8]{inputenc}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage[colorlinks=true, linkcolor=blue]{hyperref}
+\usepackage{anyfontsize}
+\usepackage{bbm}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xtab}  % Dla tabel generowanych przez R
+\usepackage{enumerate}
+%\usepackage{Sweave}
+%\usepackage{listings}
+%\lstset{breaklines=true}
+%\captionsetup[table]{skip=8pt}
+
+\newtheorem{theorem}{Twierdzenie}
+\newtheorem{lemma}{Lemat}
+\newtheorem{corollary}{Wniosek}
+\newtheorem{proposition}{Propozycja}
+\newtheorem{remark}{Uwaga}
+\newtheorem{note}{Notka}
+\newtheorem{fact}{Fakt}
+\newtheorem{definition}{Definicja}
+
+<<ustawienia_globalne, echo=FALSE, warning= FALSE, message=FALSE>>=
+library(knitr)
+library(latex2exp)
+library(ggplot2)
+library(binom)
+#library(vctrs)
+library(xtable) 
+library(wooldridge)
+opts_chunk$set(fig.path='figure/', fig.align='center', fig.pos='H',fig.width=4, fig.height=3)
+library(stats)
+library(MASS)
+@
+
+
+\begin{document}
+
+\title{Sprawozdanie 3 ADA}
+\author{ Krzysztof Radomski 275968}
+\maketitle
+\tableofcontents
+\newpage
+<<przygotowanie_danych, echo = FALSE, result = 'markup'>>=
+
+# (a) Utwórz zmienną wageCat na podstawie kwartylów zmiennej wage
+wage_quartiles <- quantile(wage1$wage, probs = c(0, 0.25, 0.5, 0.75, 1))
+wageCat <- cut(wage1$wage, breaks = wage_quartiles, include.lowest = TRUE,
+               labels = c("1", "2", "3", "4"))
+
+# (b) Utwórz zmienne educCat i experCat na podstawie tercyli odpowiednich zmiennych
+educ_terciles <- quantile(wage1$educ, probs = c(0, 1/3, 2/3, 1))
+educCat <- cut(wage1$educ, breaks = educ_terciles, include.lowest = TRUE,
+               labels = c("Low", "Medium", "High"))
+
+exper_terciles <- quantile(wage1$exper, probs = c(0, 1/3, 2/3, 1))
+experCat <- cut(wage1$exper, breaks = exper_terciles, include.lowest = TRUE,
+                labels = c("Low", "Medium", "High"))
+
+# (c) Wybierz zmienne binarne nonwhite, female, married, smsa
+nonwhite <- wage1$nonwhite
+female <- wage1$female
+married <- wage1$married
+smsa <- wage1$smsa
+
+# (d) Utwórz zmienną region na podstawie zmiennych northcen, south i west
+region <- ifelse(wage1$northcen == 1, "North Central",
+                 ifelse(wage1$south == 1, "South",
+                        ifelse(wage1$west == 1, "West", "Other")))
+
+# Połącz wszystko w nową ramkę danych
+dane <- data.frame(wageCat, educCat, experCat, nonwhite, female, married, smsa, region)
+
+
+@
+\section{Zadanie 1}
+Paradoks Simpsona opisuje sytuację, w której trend obserwowany w kilku grupach danych znika lub odwraca się po połączeniu tych grup w jedną całość. Matematycznie, jeśli \( A \), \( B \) i \( C \) są zmiennymi losowymi, paradoks zachodzi, gdy:
+\[
+P(A \mid B) < P(A \mid \neg B) \quad \text{oraz} \quad P(A \mid B, C) > P(A \mid \neg B, C) \quad \text{i} \quad P(A \mid B, \neg C) > P(A \mid \neg B, \neg C).
+\]
+
+Dla każdego z podpunktów sprawdzano, czy zachodzi paradoks Simpsona dla wybranych zmiennych. Wyniki wskazują, że w żadnym przypadku paradoks nie wystąpił.
+
+\subsection*{Test 1: A = female, B = nonwhite, C = married}
+Podział zmiennych:
+\begin{itemize}
+    \item \textbf{A:} female (płeć żeńska, zmienna binarna: 1 - tak, 0 - nie),
+    \item \textbf{B:} nonwhite (osoba niebiałoskóra, zmienna binarna: 1 - tak, 0 - nie),
+    \item \textbf{C:} married (osoba zamężna, zmienna binarna: 1 - tak, 0 - nie).
+\end{itemize}
+Wynik: Paradoks Simpsona nie wystąpił.
+<<zadanie_1_test_1 , echo = TRUE, results = 'asis'>>= 
+
+#Test 1 A:female=1 B:nonwhite=1 C:married=1
+P.A.pod.war.B<-sum(dane$female==1 & dane$nonwhite==1)/sum(dane$nonwhite==1)
+P.A.pod.war.B_<-sum(dane$female==1 & dane$nonwhite==0)/sum(dane$nonwhite==0)
+P.A.pod.war.B.C<-sum(dane$female==1 & dane$nonwhite==1 & dane$married==1)/
+  sum(dane$nonwhite==1 & dane$married==1)
+P.A.pod.war.B_.C<-sum(dane$female==1 & dane$nonwhite==0 & dane$married==1)/
+  sum(dane$nonwhite==0 & dane$married==1)
+P.A.pod.war.B.C_<-sum(dane$female==1 & dane$nonwhite==1 & dane$married==0)/
+  sum(dane$nonwhite==1 & dane$married==0)
+P.A.pod.war.B_.C_<-sum(dane$female==1 & dane$nonwhite==0 & dane$married==0)/
+  sum(dane$nonwhite==0 & dane$married==0)
+
+(P.A.pod.war.B<P.A.pod.war.B_) == 
+  (P.A.pod.war.B.C>P.A.pod.war.B_.C & P.A.pod.war.B.C_>P.A.pod.war.B_.C_
+)
+@
+
+\subsection*{Test 2: A = experCat, B = wageCat, C = female}
+Podział zmiennych:
+\begin{itemize}
+    \item \textbf{A:} experCat (kategoria doświadczenia zawodowego: Low, Medium, High),
+    \item \textbf{B:} wageCat (kategoria zarobków: 1, 2, 3, 4),
+    \item \textbf{C:} female (płeć żeńska, zmienna binarna: 1 - tak, 0 - nie).
+\end{itemize}
+Wynik: Paradoks Simpsona nie wystąpił.
+<<zadanie_1_test_2 , echo = TRUE, results = 'asis'>>=
+
+# Test 2: A = experCat, B = wageCat, C = female
+P.A.pod.war.B.2 <- sum(dane$experCat == "High" & dane$wageCat == 4) /
+  sum(dane$wageCat == 4)
+P.A.pod.war.B_.2 <- sum(dane$experCat == "High" & dane$wageCat != 4) / 
+  sum(dane$wageCat != 4)
+P.A.pod.war.B.C.2 <- sum(dane$experCat == "High" & dane$wageCat == 4 & 
+                           dane$female == 1) /
+  sum(dane$wageCat == 4 & dane$female == 1)
+P.A.pod.war.B_.C.2 <- sum(dane$experCat == "High" & dane$wageCat != 4 &
+                            dane$female == 1) /
+  sum(dane$wageCat != 4 & dane$female == 1)
+P.A.pod.war.B.C_.2 <- sum(dane$experCat == "High" & dane$wageCat == 4 & 
+                            dane$female == 0) /
+  sum(dane$wageCat == 4 & dane$female == 0)
+P.A.pod.war.B_.C_.2 <- sum(dane$experCat == "High" & dane$wageCat != 4 & 
+                             dane$female == 0) /
+  sum(dane$wageCat != 4 & dane$female == 0)
+
+ (P.A.pod.war.B.2 < P.A.pod.war.B_.2) == 
+  (P.A.pod.war.B.C.2 > P.A.pod.war.B_.C.2 &
+                                                       
+     P.A.pod.war.B.C_.2 > P.A.pod.war.B_.C_.2)
+@
+
+\subsection*{Test 3: A = region, B = nonwhite, C = married}
+Podział zmiennych:
+\begin{itemize}
+    \item \textbf{A:} region (region zamieszkania: West, North Central, South, Other),
+    \item \textbf{B:} nonwhite (osoba niebiałoskóra, zmienna binarna: 1 - tak, 0 - nie),
+    \item \textbf{C:} married (osoba zamężna, zmienna binarna: 1 - tak, 0 - nie).
+\end{itemize}
+Wynik: Paradoks Simpsona nie wystąpił.
+<<zadanie_1_test_3 , echo = TRUE, results = 'asis'>>=
+# Test 3: A = region, B = nonwhite, C = married
+P.A.pod.war.B.3 <- sum(dane$region == "West" & dane$nonwhite == 1) /
+  sum(dane$nonwhite == 1)
+P.A.pod.war.B_.3 <- sum(dane$region == "West" & dane$nonwhite == 0) /
+  sum(dane$nonwhite == 0)
+P.A.pod.war.B.C.3 <- sum(dane$region == "West" & dane$nonwhite == 1 & 
+                           dane$married == 1) /
+  sum(dane$nonwhite == 1 & dane$married == 1)
+P.A.pod.war.B_.C.3 <- sum(dane$region == "West" & dane$nonwhite == 0 & 
+                            dane$married == 1) /
+  sum(dane$nonwhite == 0 & dane$married == 1)
+P.A.pod.war.B.C_.3 <- sum(dane$region == "West" & dane$nonwhite == 1 & 
+                            dane$married == 0) /
+  sum(dane$nonwhite == 1 & dane$married == 0)
+P.A.pod.war.B_.C_.3 <- sum(dane$region == "West" & dane$nonwhite == 0 & 
+                             dane$married == 0) /
+  sum(dane$nonwhite == 0 & dane$married == 0)
+
+(P.A.pod.war.B.3 < P.A.pod.war.B_.3) == 
+  (P.A.pod.war.B.C.3 > P.A.pod.war.B_.C.3 &
+                                                       
+     P.A.pod.war.B.C_.3 > P.A.pod.war.B_.C_.3)
+
+@
+Przeprowadzone testy wykazały, że w żadnym z badanych przypadków paradoks Simpsona nie wystąpił. Należy jednak zauważyć, że brak wystąpienia paradoksu w tych konkretnych podziałach zmiennych nie gwarantuje, że paradoks nie wystąpi w przypadku innych podziałów. Dlatego analiza powinna być przeprowadzana z uwzględnieniem różnych kombinacji zmiennych.
+
+
+\section{Zadanie 2}
+
+Na potrzeby analizy przyjęto następującą interpretację cyfr odpowiadających zmiennym:
+\begin{itemize}
+    \item 1 - \texttt{wageCat}
+    \item 2 - \texttt{educCat}
+    \item 3 - \texttt{female}
+\end{itemize}
+
+Poniżej znajdują się opisy analizowanych relacji między zmiennymi:  
+
+\begin{enumerate}[(a)]
+    \item \textbf{[1 3]}  
+    \begin{itemize}
+        \item Zmienna 2 ma rozkład równomierny i jest niezależna od pozostałych zmiennych.  
+        \item Zmienne 1 oraz 3 mają dowolny rozkład i są niezależne od siebie nawzajem oraz od zmiennej 2.
+    \end{itemize}
+
+    \item \textbf{[13]}  
+    \begin{itemize}
+        \item Zmienna 2 ma rozkład równomierny i jest niezależna od pozostałych zmiennych.  
+        \item Zmienne 1 oraz 3 są od siebie zależne i mają dowolny rozkład.
+    \end{itemize}
+
+    \item \textbf{[1 2 3]}  
+    \begin{itemize}
+        \item Każda ze zmiennych ma dowolny rozkład i są od siebie nawzajem niezależne.
+    \end{itemize}
+
+    \item \textbf{[12 3]}  
+    \begin{itemize}
+        \item Zmienna 3 ma dowolny rozkład i jest niezależna od pozostałych.  
+        \item Zmienne 1 i 2 są od siebie zależne i mają dowolny rozkład.
+    \end{itemize}
+
+    \item \textbf{[12 13]}  
+    \begin{itemize}
+        \item Przy ustalonej wartości zmiennej 1, zmienne 2 i 3 są niezależne, czyli są warunkowo niezależne.
+    \end{itemize}
+
+    \item \textbf{[1 23]}  
+    \begin{itemize}
+        \item Zmienna 1 ma dowolny rozkład i jest niezależna od zmiennych 2 i 3.  
+        \item Zmienne 2 i 3 są od siebie zależne.
+    \end{itemize}
+\end{enumerate}
+
+\section{Zadanie 3}
+Funkcja \texttt{glm} (Generalized Linear Model) pozwala na dopasowanie uogólnionych modeli liniowych, rozszerzających klasyczne modele liniowe o możliwość modelowania zmiennych zależnych z różnych rodzin rozkładów. Jest szeroko stosowana w analizach statystycznych, takich jak regresja logistyczna czy regresja Poissona. Model w funkcji \texttt{glm} definiujemy za pomocą formuły w postaci: \texttt{y \textasciitilde{} x1 + x2 + x3}. Formuła ta wskazuje, że zmienna zależna \texttt{y} jest modelowana jako funkcja zmiennych niezależnych \texttt{x1}, \texttt{x2} i \texttt{x3}. Parametr \texttt{family} określa rodzinę rozkładów, które najlepiej odpowiadają charakterowi zmiennej zależnej. Dostępne opcje to: \texttt{gaussian} (rozkład normalny, domyślny, stosowany w klasycznej regresji liniowej), \texttt{binomial} (rozkład dwumianowy, stosowany w regresji logistycznej dla zmiennych binarnych), \texttt{poisson} (rozkład Poissona, używany w przypadku danych licznikowych) oraz inne, takie jak \texttt{Gamma} czy \texttt{inverse.gaussian}. Na przykład, dopasowanie regresji logistycznej można przeprowadzić za pomocą następującego kodu:
+\begin{verbatim}
+model <- glm(y ~ x1 + x2, family = binomial, data = my_data)
+\end{verbatim}
+
+Funkcja \texttt{loglin} służy do dopasowywania modeli logarytmiczno-liniowych (log-linear models), stosowanych głównie w analizach danych tabelarycznych, takich jak tablice kontyngencji. Modele te pozwalają na analizę zależności między kategorycznymi zmiennymi w tabelach wielowymiarowych. Model w funkcji \texttt{loglin} definiujemy za pomocą listy marginesów, które mają być uwzględnione w modelu. Każda zmienna musi być zidentyfikowana przez jej pozycję w tablicy kontyngencji. Modele log-liniowe w \texttt{loglin} zakładają rozkład Poissona dla danych tabelarycznych. Na przykład, analiza modelu logarytmiczno-liniowego dla tablicy kontyngencji może wyglądać następująco:
+\begin{verbatim}
+data(Titanic)
+loglin(Titanic, margin = list(1, 2, c(1, 2)))
+\end{verbatim}
+
+Funkcja \texttt{loglm} jest bardziej elastycznym odpowiednikiem \texttt{loglin}, pozwalającym na deklarację modeli logarytmiczno-liniowych za pomocą formuły, podobnie jak w \texttt{glm}. Jest często wykorzystywana do analiz danych tabelarycznych z kategorycznymi zmiennymi. Model definiujemy za pomocą formuły w postaci: \texttt{Freq \textasciitilde{} A + B + A:B}. Oznacza to, że zmienna zależna \texttt{Freq} (liczba obserwacji) jest modelowana jako funkcja zmiennych kategorycznych \texttt{A} i \texttt{B} oraz ich interakcji \texttt{A:B}. Podobnie jak w przypadku \texttt{loglin}, rodzina rozkładów zakłada rozkład Poissona dla danych tabelarycznych. Na przykład, dopasowanie modelu logarytmiczno-liniowego dla tablicy kontyngencji można przeprowadzić w następujący sposób:
+\begin{verbatim}
+library(MASS)
+data(Titanic)
+loglm(Freq ~ Class + Sex + Class:Sex, data = Titanic)
+\end{verbatim}
+
+Podsumowując, funkcje \texttt{glm}, \texttt{loglin} i \texttt{loglm} mają swoje specyficzne zastosowania: \texttt{glm} pozwala na szerokie modelowanie danych w oparciu o różne rodziny rozkładów, podczas gdy \texttt{loglin} i \texttt{loglm} są dedykowane analizom danych tabelarycznych, takich jak tablice kontyngencji.
+
+
+
+\section{Zadanie 4}
+
+<<zad4_modele_i_pbb, echo = FALSE, results='hide'>>=
+ramka_danych <- as.data.frame(table(dane[,c(1,5,2)]))
+
+# Dopasowanie modelu [12 3]
+model_12_3 <- glm(Freq~ female:wageCat + educCat + wageCat + female, family = poisson, data = ramka_danych)
+summary(model_12_3)
+
+# Dopasowanie modelu [12 13]
+model_12_13 <- glm(Freq~ female:wageCat + wageCat:educCat + educCat + wageCat + female, family = poisson, data = ramka_danych)
+
+
+x<-model_12_3$fitted.values/length(dane$wageCat)
+#A
+x[24]/sum(x[21:24])
+
+#B
+x[20] / sum(x[17:20]) 
+
+#C
+x[24] / sum(x[24], x[16], x[8])
+
+#D
+x[4] / sum(x[4], x[12], x[20])
+
+#E
+x[20]+x[24] / sum(x[20],x[24], x[16], x[12], x[8], x[4])
+
+#F
+x[21]+x[17] / sum(x[20],x[24], x[16], x[12], x[8], x[4])
+
+
+y<-model_12_13$fitted.values/length(dane$wageCat)
+#A
+y[24]/sum(y[21:24])
+
+#B
+y[20] / sum(y[17:20]) 
+
+#C
+y[24] / sum(y[24], y[16], y[8])
+
+#D
+y[4] / sum(y[4], y[12], y[20])
+
+#E
+y[20]+y[24] / sum(y[20],y[24], y[16], y[12], y[8], y[4])
+
+#F
+y[21]+y[17] / sum(y[20],y[24], y[16], y[12], y[8], y[4])
+
+@
+
+\subsection*{Model \([12 \ 3]\)}
+
+\begin{itemize}
+  \item \textbf{Podpunkt (a):}  
+  Prawdopodobieństwo, że zarobki kobiety o najwyższym poziomie wykształcenia należą do najwyższej kategorii:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{female = 1, educCat = \text{"High"}}) = 0.1111
+  \]
+  
+
+  \item \textbf{Podpunkt (b):}  
+  Prawdopodobieństwo, że zarobki mężczyzny o najwyższym poziomie wykształcenia należą do najwyższej kategorii:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{female = 0, educCat = \text{"High"}}) = 0.3759
+  \]
+  
+
+  \item \textbf{Podpunkt (c):}  
+  Prawdopodobieństwo, że kobieta o najwyższej kategorii zarobków ma najwyższy poziom wykształcenia:  
+  \[
+  P(\text{educCat = \text{"High"}} \mid \text{wageCat} = 4, \text{female = 1}) = 0.3289
+  \]
+  
+  \item \textbf{Podpunkt (d):}  
+  Prawdopodobieństwo, że mężczyzna o najwyższej kategorii zarobków ma najniższą kategorię wykształcenia:  
+  \[
+  P(\text{educCat = \text{"Low"}} \mid \text{wageCat} = 4, \text{female = 0}) = 0.5970
+  \]
+ 
+
+  \item \textbf{Podpunkt (e):}  
+  Prawdopodobieństwo, że osoba o najwyższym poziomie wykształcenia ma zarobki na najwyższym poziomie:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{educCat = \text{"High"}}) = 0.1347
+  \]
+  
+
+  \item \textbf{Podpunkt (f):}  
+  Prawdopodobieństwo, że osoba o najwyższym poziomie wykształcenia ma zarobki na najniższym poziomie:  
+  \[
+  P(\text{wageCat} = 1 \mid \text{educCat = \text{"High"}}) = 0.1567
+  \]
+  
+\end{itemize}
+
+\subsection*{Model \([12 \ 13]\)}
+
+\begin{itemize}
+  \item \textbf{Podpunkt (a):}  
+  Prawdopodobieństwo, że zarobki kobiety o najwyższym poziomie wykształcenia należą do najwyższej kategorii:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{female = 1, educCat = \text{"High"}}) = 0.2298
+  \]
+  
+  \item \textbf{Podpunkt (b):}  
+  Prawdopodobieństwo, że zarobki mężczyzny o najwyższym poziomie wykształcenia należą do najwyższej kategorii:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{female = 0, educCat = \text{"High"}}) = 0.5339
+  \]
+  
+  \item \textbf{Podpunkt (c):}  
+  Prawdopodobieństwo, że kobieta o najwyższej kategorii zarobków ma najwyższy poziom wykształcenia:  
+  \[
+  P(\text{educCat = \text{"High"}} \mid \text{wageCat} = 4, \text{female = 1}) = 0.5496
+  \]
+ 
+  \item \textbf{Podpunkt (d):}  
+  Prawdopodobieństwo, że mężczyzna o najwyższej kategorii zarobków ma najniższą kategorię wykształcenia:  
+  \[
+  P(\text{educCat = \text{"Low"}} \mid \text{wageCat} = 4, \text{female = 0}) = 0.3817
+  \]
+  
+
+  \item \textbf{Podpunkt (e):}  
+  Prawdopodobieństwo, że osoba o najwyższym poziomie wykształcenia ma zarobki na najwyższym poziomie:  
+  \[
+  P(\text{wageCat} = 4 \mid \text{educCat = \text{"High"}}) = 0.2251
+  \]
+  
+
+  \item \textbf{Podpunkt (f):}  
+  Prawdopodobieństwo, że osoba o najwyższym poziomie wykształcenia ma zarobki na najniższym poziomie:  
+  \[
+  P(\text{wageCat} = 1 \mid \text{educCat = \text{"High"}}) = 0.0501
+  \]
+
+\end{itemize}
+
+\subsection*{Podsumowanie}
+Wyniki modelu \([12 \ 13]\) różnią się od wyników modelu \([12 \ 3]\) w zakresie wartości prawdopodobieństw. Model \([12 \ 13]\), dzięki uwzględnieniu interakcji między \texttt{wageCat} a \texttt{educCat}, lepiej odzwierciedla zależności między zarobkami a poziomem wykształcenia. Wartości prawdopodobieństw są wyższe dla osób z najwyższym wykształceniem i zarobkami w najwyższej kategorii, co sugeruje, że model \([12 \ 13]\) może być bardziej odpowiedni dla analizy tych danych.
+
+
+\section{Zadanie 5}
+
+<<Zadanie_5, echo = FALSE, results = 'hide'>>=
+
+testuj.model<-function(tabela,H.0,H.1){
+  model.0<-loglin(tabela,H.0,fit=T,print=F,param=T)
+  model.1<-loglin(tabela,H.1,fit=T,print=F,param=T)
+  return(pchisq(model.0$lrt-model.1$lrt,model.0$df-model.1$df,lower.tail=F))}
+
+
+tabela_1 <- table(dane[,c(1,5,2)]) #podpunkty a-d
+tabela_2 <- table(dane[,c(1,6,8)]) #podpunkty e-g
+tabela_3 <- table(dane[,c(1,5,6)]) #podpunkt h
+
+#A
+testuj.model(tabela_1,list(c(1),c(2),c(3)),list(c(1,2,3)))#4.85841e-25, odrzucamy, lepsze jest H1
+testuj.model(tabela_1,list(c(1),c(2),c(3)),list(c(1,2),c(1,3)) ) #tu też
+
+#B
+testuj.model(tabela_1,list(c(1),c(2,3)),list(c(1,2,3)))
+testuj.model(tabela_1,list(c(1),c(2,3)),list(c(1,2),c(1,3)))
+
+#c
+testuj.model(tabela_1,list(c(1,2),c(2,3)),list(c(1,2,3)))
+testuj.model(tabela_1,list(c(1,2),c(2,3)),list(c(1,2),c(1,3)))
+
+#D
+testuj.model(tabela_1,list(c(1,3),c(2,3)),list(c(1,2,3)))
+testuj.model(tabela_1,list(c(1,3),c(2,3)),list(c(1,2),c(1,3)))
+
+#E
+testuj.model(tabela_2,list(c(1),c(2),c(3)),list(c(1,2,3)))
+
+#F
+testuj.model(tabela_2,list(c(1),c(2,3)),list(c(1,2,3)))
+
+#G
+testuj.model(tabela_2,list(c(1,2),c(2,3)),list(c(1,2,3)))
+
+#H
+testuj.model(tabela_3,list(c(1,3),c(2,3)),list(c(1,2,3)))
+
+
+
+@
+
+
+\subsection*{Zmienne w analizie}
+- \texttt{1}: wageCat
+- \texttt{2}: educCat
+- \texttt{3}: female
+- \texttt{5}: married
+- \texttt{6}: region
+- \texttt{8}: smsa
+
+\subsection*{Wyniki testów hipotez}
+
+\textbf{(a) Zmienne losowe \texttt{wageCat}, \texttt{female} i \texttt{educCat} są wzajemnie niezależne.}
+
+\begin{verbatim}
+testuj.model(tabela_1, list(c(1), c(2), c(3)), list(c(1, 2, 3)))
+# Wynik: p = 4.85841e-25
+
+testuj.model(tabela_1, list(c(1), c(2), c(3)), list(c(1, 2), c(1, 3)))
+# Wynik: p = 9.388752e-28
+\end{verbatim}
+
+Odrzucamy \(H_0\) w obu przypadkach. Lepsze są modele alternatywne \(H_1\), które uwzględniają zależności między zmiennymi \texttt{wageCat}, \texttt{female} i \texttt{educCat}. 
+
+\textbf{Wniosek:} Zależności między tymi zmiennymi są istotne.
+
+\textbf{(b) Zmienna losowa \texttt{wageCat} jest niezależna od pary zmiennych \texttt{female} i \texttt{educCat}.}
+
+\begin{verbatim}
+testuj.model(tabela_1, list(c(1), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 1.132846e-22
+
+testuj.model(tabela_1, list(c(1), c(2, 3)), list(c(1, 2), c(1, 3)))
+# Wynik: p = 1.666627e-25
+\end{verbatim}
+
+Odrzucamy \(H_0\) w obu przypadkach. Lepsze są modele alternatywne \(H_1\), co wskazuje na istotną zależność \texttt{wageCat} od \texttt{female} i \texttt{educCat}.
+
+\textbf{Wniosek:} Zmienna \texttt{wageCat} jest istotnie zależna od zmiennych \texttt{female} i \texttt{educCat}.
+
+\textbf{(c) Zmienna losowa \texttt{wageCat} jest niezależna od zmiennej \texttt{educCat}, przy ustalonej zmiennej \texttt{female}.}
+
+\begin{verbatim}
+testuj.model(tabela_1, list(c(1, 2), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 6.446744e-09
+
+testuj.model(tabela_1, list(c(1, 2), c(2, 3)), list(c(1, 2), c(1, 3)))
+# Wynik: p = 4.845518e-11
+\end{verbatim}
+
+Odrzucamy \(H_0\) w obu przypadkach. Zmienna \texttt{wageCat} jest istotnie zależna od \texttt{educCat}, nawet przy ustalonej wartości zmiennej \texttt{female}.
+
+\textbf{Wniosek:} Zależność między zmiennymi \texttt{wageCat} i \texttt{educCat} jest istotna.
+
+\textbf{(d) Zmienna losowa \texttt{wageCat} jest niezależna od zmiennej \texttt{female}, przy ustalonej zmiennej \texttt{educCat}.}
+
+\begin{verbatim}
+testuj.model(tabela_1, list(c(1, 3), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 1.343257e-11
+
+testuj.model(tabela_1, list(c(1, 3), c(2, 3)), list(c(1, 2), c(1, 3)))
+# Wynik: p = 4.481184e-15
+\end{verbatim}
+
+Odrzucamy \(H_0\) w obu przypadkach. Zmienna \texttt{wageCat} jest istotnie zależna od \texttt{female}, nawet przy ustalonej wartości zmiennej \texttt{educCat}.
+
+\textbf{Wniosek:} Zależność między zmiennymi \texttt{wageCat} i \texttt{female} jest istotna.
+
+\textbf{(e) Zmienne losowe \texttt{wageCat}, \texttt{married} i \texttt{region} są wzajemnie niezależne.}
+
+\begin{verbatim}
+testuj.model(tabela_2, list(c(1), c(2), c(3)), list(c(1, 2, 3)))
+# Wynik: p = 7.921775e-06
+\end{verbatim}
+
+Odrzucamy \(H_0\). Lepszym modelem jest \(H_1\), który uwzględnia zależności między \texttt{wageCat}, \texttt{married} i \texttt{region}.
+
+\textbf{Wniosek:} Zależności między tymi zmiennymi są istotne.
+
+\textbf{(f) Zmienna losowa \texttt{wageCat} jest niezależna od pary zmiennych \texttt{married} i \texttt{region}.}
+
+\begin{verbatim}
+testuj.model(tabela_2, list(c(1), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 4.646635e-06
+\end{verbatim}
+
+Odrzucamy \(H_0\). Lepszym modelem jest \(H_1\), który uwzględnia zależność \texttt{wageCat} od \texttt{married} i \texttt{region}.
+
+\textbf{Wniosek:} Zmienna \texttt{wageCat} jest istotnie zależna od zmiennych \texttt{married} i \texttt{region}.
+
+\textbf{(g) Zmienna losowa \texttt{wageCat} jest niezależna od zmiennej \texttt{region}, przy ustalonej zmiennej \texttt{married}.}
+
+\begin{verbatim}
+testuj.model(tabela_2, list(c(1, 2), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 0.0857768
+\end{verbatim}
+
+Nie mamy podstaw do odrzucenia \(H_0\). Możemy przyjąć, że \texttt{wageCat} jest niezależna od \texttt{region}, przy ustalonej wartości zmiennej \texttt{married}.
+
+\textbf{Wniosek:} Nie wykazano istotnej zależności między zmiennymi \texttt{wageCat} i \texttt{region} przy uwzględnieniu zmiennej \texttt{married}.
+
+\textbf{(h) Zmienna losowa \texttt{wageCat} jest niezależna od zmiennej \texttt{female}, przy ustalonej zmiennej \texttt{married}.}
+
+\begin{verbatim}
+testuj.model(tabela_3, list(c(1, 3), c(2, 3)), list(c(1, 2, 3)))
+# Wynik: p = 1.731536e-16
+\end{verbatim}
+
+Odrzucamy \(H_0\). Lepszym modelem jest \(H_1\), który uwzględnia zależność \texttt{wageCat} od \texttt{female} przy ustalonej wartości zmiennej married
+
+
+\section{Zadanie 6}
+
+<<Zadanie_6, echo =TRUE, results ='asis'>>=
+#A
+tabela_6_1 <-  table(dane[,c(4,5,6)])
+testuj.model(tabela_6_1,list(c(1,2),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+testuj.model(tabela_6_1,list(c(1,3),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+
+#B
+tabela_6_2 <-  table(dane[,c(1,3,5)])
+testuj.model(tabela_6_2,list(c(1,2),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+testuj.model(tabela_6_2,list(c(1,3),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+
+#C
+tabela_6_3 <-  table(dane[,c(4,6,8)])
+testuj.model(tabela_6_3,list(c(1,2),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+testuj.model(tabela_6_3,list(c(1,3),c(2,3)),list(c(1,2),c(1,3),c(2,3)))
+
+@
+
+\subsection*{Założenia}
+Paradoks Simpsona zachodzi, jeśli w przypadku przynajmniej jednej hipotezy nie odrzucimy $H_0$. W tym zadaniu analizujemy trzy różne trójki zmiennych:
+\begin{itemize}
+    \item \textbf{Tabela A:} Zmienna 4 (smsa), Zmienna 5 (married), Zmienna 6 (region).
+    \item \textbf{Tabela B:} Zmienna 1 (wageCat), Zmienna 3 (female), Zmienna 5 (married).
+    \item \textbf{Tabela C:} Zmienna 4 (smsa), Zmienna 6 (region), Zmienna 8 (educCat).
+\end{itemize}
+
+\subsection*{Wyniki analizy}
+\textbf{Tabela A:}
+\begin{verbatim}
+Test 1: p = 0.1394
+Test 2: p = 0.6201
+\end{verbatim}
+W obu testach $p > 0.05$, co oznacza, że nie mamy podstaw do odrzucenia $H_0$. Paradoks Simpsona \textbf{nie zachodzi}.
+
+\textbf{Tabela B:}
+\begin{verbatim}
+Test 1: p = 1.6924e-16
+Test 2: p = 6.7025e-06
+\end{verbatim}
+W obu przypadkach $p < 0.05$, co oznacza, że odrzucamy $H_0$. Paradoks Simpsona \textbf{może zajść}.
+
+\textbf{Tabela C:}
+\begin{verbatim}
+Test 1: p = 0.0693
+Test 2: p = 0.1109
+\end{verbatim}
+W obu testach $p > 0.05$, co oznacza, że nie mamy podstaw do odrzucenia $H_0$. Paradoks Simpsona \textbf{nie zachodzi}.
+
+
+\section{Zadanie 7}
+<<deklarowanie_rzeczy, echo = FALSE, results = 'hide'>>=
+tabela_7<- table(dane[,c(1,2,5,8)])
+full_model<-glm(Freq~wageCat:educCat:female:region+wageCat:educCat:female+wageCat:educCat:region+wageCat:female:region+educCat:female:region+wageCat:educCat+region:educCat+female:educCat+wageCat:female+wageCat:region+female:region+educCat+female+region+wageCat,data=as.data.frame(table(dane[,c(1,2,5,8)])),family=poisson())
+zero_model<-glm(Freq~1,data=as.data.frame(tabela_7),family=poisson())
+medium_model<-glm(Freq~wageCat+educCat:female + educCat:region ,data=as.data.frame(tabela_7),family=poisson())
+@
+
+\subsection{a)}
+Zadanie 7 polega na wybraniu jak najlepszego modelu log-liniowgo do zmiennych wageCat, educCat, female i region. W podpunkcie a) musieliśmy dokonać wyboru w oparciu o testy, co za tym idzie, dokonywać bardzo dużo decyzji o odrzucaniu pojedynczych interakcji lub decydowaniu o ich istotności. Kroki były następujące: Na samym początku sprawdziliśmy czy model pełny, czyli zawierający wszystkie interakcje (włącznie z tą 3-ciego rzędu) będzie najlepszy. Otrzymaliśmy p-value około 0.07, zatem w zależności od przyjętego poziomu ufności mogliśmy przyjąć, że model maksymalny jest najlepszy i zakończyć pracę, albo uznać, że interakcja czterech zmiennych nie jest istotna i szukać lepszego modelu log-liniowego. Przyjęliśmy drugą opcję. Dalej widać 4 hipotezy w której odrzucaliśmy pojedynczo wszystkie interakcje 2-giego rzędu, dowiadując się, że żadna nie jest istotna. Następnie testowaliśmy, czy model zawierający wyłącznie interakcje 1-szego rzędu będzie lepszy i był. Potem zrobiliśmy 6 testów, w każdym wyrzucając jedną interakcję. wniosek był taki, iż istotne są tylko interakcje (1,2) oraz (1,3), zatem następną hipotezą (która się potwierdziła) było to , że model [12 13 4] jest dobry. Na końcu próbowaliśmy go jeszcze zmniejszać, jednak żaden mniejszy model nie był lepszy. Ostatecznie kryterium testów uzyskaliśmy odpowiedź, że szukany model log-liniowy to [12 13 4]. 
+
+<<zadanie_7_testy, echo = TRUE, results = 'asis'>>=
+testuj.model(tabela_7,
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)),
+             list(c(1, 2, 3, 4), 
+                  c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+#maksymalny model jest gorszy
+
+
+testuj.model(tabela_7, list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4)),
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2, 3), c(1, 2, 4), c(2, 3, 4)),
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2, 3), c(1, 3, 4), c(2, 3, 4)),
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+
+testuj.model(tabela_7, list(c(2, 3, 4), c(1, 3, 4), c(1, 2, 4)),
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+
+#żadna potrójna interakcja nie jest ważna
+
+
+testuj.model(tabela_7, list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)),
+             list(c(1, 2, 3), c(1, 2, 4), c(1, 3, 4), c(2, 3, 4)))
+
+
+
+
+
+testuj.model(tabela_7, list(c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2), c(1, 4),c(2, 3),c(2, 4), c(3, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2),c(1, 3),c(2, 3),c(2, 4), c(3, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2),c(1, 3),c(1,4),c(2, 4), c(3, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2),c(1, 3),c(1,4),c(2, 3), c(3, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+testuj.model(tabela_7, list(c(1, 2),c(1, 3),c(1,4),c(2, 3),c(2, 4)),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+#więc ważne są 1,2 i 1,3 i 4
+
+testuj.model(tabela_7, list(c(1, 2),c(1,3), 4),
+             list(c(1, 2),c(1, 3), c(1, 4),c(2, 3),c(2, 4), c(3, 4)))
+
+
+
+testuj.model(tabela_7, list(2,c(1,3), 4),
+             list(c(1, 2),c(1,3), 4))
+
+testuj.model(tabela_7, list(c(1, 2),3, 4),
+             list(c(1, 2),c(1,3), 4))
+
+testuj.model(tabela_7, list(c(1, 2),c(1,3)),
+             list(c(1, 2),c(1,3), 4))
+
+@
+
+\subsection{b)}
+
+<<zadanie_7_aic, echo = FALSE, results = 'hide'>>=
+model_aic_backward <- step(full_model, scope=list(lower=zero_model), direction="backward", k=2)
+model_aic_forward <- step(zero_model, scope=list(upper=full_model), direction="forward", k=2)
+model_aic_both <- step(zero_model, scope=list(upper=full_model, lower=zero_model), direction="both", k=2)
+@
+
+<<zadanie_7_aic_print, echo = FALSE, results = 'asis'>>=
+cat("\\textbf{Formula of backward model:} \n")
+cat(paste(deparse(formula(model_aic_backward)), collapse=" \\\\ \n"))
+cat("\n")
+cat("\\textbf{Formula of forward model:} \n")
+cat(paste(deparse(formula(model_aic_forward)), collapse=" \\\\ \n"))
+cat("\n")
+cat("\\textbf{Formula of both model:} \n")
+cat(paste(deparse(formula(model_aic_both)), collapse=" \\\\ \n"))
+cat("\n")
+@
+
+AIC (Akaike Information Criterion) to jedno z najczęściej stosowanych kryteriów oceny jakości modelu statystycznego. AIC penalizuje modele za ich złożoność, ale jednocześnie nagradza za dopasowanie do danych. Wzór na AIC to:
+
+\[
+AIC = 2k - 2\ln(L)
+\]
+
+gdzie \( k \) to liczba parametrów w modelu, a \( L \) to funkcja wiarygodności modelu. Niższa wartość AIC wskazuje na lepszy model.
+
+W ramach wyboru modelu log-liniowego do zmiennych `wageCat`, `educCat`, `female`, `region` zastosowano trzy metody selekcji zmiennych:
+
+\begin{itemize}
+    \item \textbf{Backward selection}: Metoda ta polega na rozpoczęciu od pełnego modelu i stopniowym usuwaniu zmiennych, które najmniej przyczyniają się do dopasowania modelu, aż do momentu, gdy dalsze usuwanie zmiennych pogarsza jakość modelu. Otrzymany model to:
+    \[
+    \text{educCat} + \text{female} + \text{region} + \text{wageCat} + \text{educCat:wageCat} + \text{educCat:female} + \text{female:wageCat}
+    \]
+    \item \textbf{Forward selection}: Metoda polega na rozpoczęciu od modelu zawierającego tylko stałą, a następnie dodawaniu zmiennych, które poprawiają dopasowanie modelu. Ostateczny model to:
+    \[
+    \text{educCat} + \text{region}
+    \]
+    \item \textbf{Both (stepwise) selection}: Metoda łączy cechy obu poprzednich: zmienne są dodawane do modelu, ale również usuwane, jeśli nie poprawiają istotnie dopasowania. Model uzyskany tą metodą to:
+    \[
+    \text{educCat} + \text{region}
+    \]
+\end{itemize}
+
+Spośród tych modeli, wybieramy model o najniższym AIC, który będzie najlepszym kompromisem pomiędzy jakością dopasowania a prostotą modelu.
+
+
+\subsection{c)}
+
+<<zadanie_7_bic, echo = FALSE, results = 'hide'>>=
+n <- length(dane[,1])
+
+model_bic_backward <- step(full_model, scope=list(lower=zero_model), direction="backward", k=log(n))
+model_bic_forward <- step(zero_model, scope=list(upper=full_model), direction="forward", k=log(n))
+model_bic_both <- step(zero_model, scope=list(upper=full_model, lower=zero_model), direction="both", k=log(n))
+@
+
+<<zadanie_7_bic_print, echo = FALSE, results = 'asis'>>=
+cat("\\textbf{Formula of backward model:} \n")
+cat(paste(deparse(formula(model_bic_backward)), collapse=" \\\\ \n"))
+cat("\n")
+cat("\\textbf{Formula of forward model:} \n")
+cat(paste(deparse(formula(model_bic_forward)), collapse=" \\\\ \n"))
+cat("\n")
+cat("\\textbf{Formula of both model:} \n")
+cat(paste(deparse(formula(model_bic_both)), collapse=" \\\\ \n"))
+cat("\n")
+@
+
+
+BIC (Bayesian Information Criterion) jest kolejnym kryterium oceny jakości modelu, które różni się od AIC poprzez silniejszą penalizację za liczbę parametrów. BIC jest szczególnie użyteczne przy selekcji modeli w dużych próbach, ponieważ kara za złożoność modelu jest większa niż w przypadku AIC. Wzór na BIC to:
+
+\[
+BIC = \ln(n)k - 2\ln(L)
+\]
+
+gdzie \( n \) to liczba obserwacji, \( k \) to liczba parametrów, a \( L \) to funkcja wiarygodności modelu. Niższa wartość BIC wskazuje na lepszy model.
+
+Podobnie jak w przypadku AIC, zastosowano trzy metody selekcji zmiennych:
+
+\begin{itemize}
+    \item \textbf{Backward selection}: Ostateczny model uzyskany tą metodą to:
+    \[
+    \text{educCat} + \text{female} + \text{region} + \text{wageCat} + \text{educCat:wageCat} + \text{female:wageCat}
+    \]
+    \item \textbf{Forward selection}: Model wybrany tą metodą to:
+    \[
+    \text{educCat} + \text{region}
+    \]
+    \item \textbf{Both (stepwise) selection}: Model uzyskany tą metodą to:
+    \[
+    \text{educCat} + \text{region}
+    \]
+\end{itemize}
+
+Tak jak w przypadku AIC, wybór najlepszego modelu następuje na podstawie najmniejszej wartości BIC. Dla tego zadania modele uzyskane metodą forward i both były identyczne i zawierały tylko zmienne `Freq`, `educCat` i `region`.
+
+
+\end{document}
